@@ -1,0 +1,56 @@
+{
+  "/config/m4": {
+    "machine_name": "m4",
+    "host_ip": "127.0.0.4",
+    "machine_type": "server",
+    "profile_id": 1004
+  },
+  "/config/m7": {
+    "machine_name": "m7",
+    "host_ip": "127.0.0.7",
+    "machine_type": "database",
+    "profile_id": 2002
+  },
+  "/config/m9": {
+    "machine_name": "m9",
+    "host_ip": "127.0.0.9",
+    "machine_type": "cache",
+    "profile_id": 3001
+  },
+  "/config/m6": {
+    "machine_name": "m6",
+    "host_ip": "127.0.0.6",
+    "machine_type": "database",
+    "profile_id": 2001
+  },
+  "/config/m10": {
+    "machine_name": "m10",
+    "host_ip": "127.0.0.10",
+    "machine_type": "cache",
+    "profile_id": 3002
+  },
+  "/config/m1": {
+    "machine_name": "m1",
+    "host_ip": "127.0.0.1",
+    "machine_type": "server",
+    "profile_id": 1001
+  },
+  "/config/m5": {
+    "machine_name": "m5",
+    "host_ip": "127.0.0.5",
+    "machine_type": "server",
+    "profile_id": 1005
+  },
+  "/config/m8": {
+    "machine_name": "m8",
+    "host_ip": "127.0.0.8",
+    "machine_type": "database",
+    "profile_id": 2003
+  },
+  "/config/m3": {
+    "machine_name": "m3",
+    "host_ip": "127.0.0.3",
+    "machine_type": "server",
+    "profile_id": 1003
+  }
+}
