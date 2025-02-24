@@ -15,21 +15,24 @@ use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::io::Write;
+use std::sync::Arc;
+use std::thread::Thread;
+use reqwest::Request;
 use serde::{Deserialize, Serialize};
 use serde_json::map::Keys;
 use std::sync::Mutex;
-
-
+use reqwest::blocking::Client;
+use dist_key_value_store::ThreadPool;
 
 use std:: {
     io::{prelude:: *, BufReader},
     net::{TcpListener,TcpStream},
+    thread,
+    time::Duration,
 };
-
 
 #[macro_use]
 extern crate lazy_static;
-
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Configuration{
@@ -44,8 +47,6 @@ lazy_static::lazy_static! {
     static ref MACHINE_CONFIGS: Mutex<HashMap<String, Configuration>> = Mutex::new(HashMap::new());
 }
  
-
-
 fn load_db(filepath: &str) {
     let file_content = fs::read_to_string(filepath)
                         .unwrap_or_else(|_|"{}".to_string());
@@ -64,13 +65,16 @@ fn load_db(filepath: &str) {
         *configs = HashMap::new();
     }
 
-
-
 }
-fn process_input(){
+
+
+fn process_request(){
 
     loop{
         print!(">");
+        print!(">");
+        
+
         io::stdout().flush().unwrap();
         let mut input = String::new();
         io::stdin().read_line(&mut input).unwrap();
@@ -80,7 +84,6 @@ fn process_input(){
         if parts.is_empty(){
             continue;
         }
-
         match parts[0] {
             "put" if parts.len() == 6  => {
                 
@@ -152,39 +155,161 @@ fn del(Key: &String){
     }
 }
 
+
+/*
+
+ Function Name: handle_connection function.
+
+
+*/
 fn handle_connection(mut stream : TcpStream){
     let buf_reader = BufReader::new(&stream);
     let http_request: Vec<_> = buf_reader.lines()
                                 .map(|result| result.unwrap())
                                 .take_while(|line| !line.is_empty())
                                 .collect();
-    println!("Request: {http_request:#?}");
-
-    //contents of HTTP response
-    let status = "HTTP/1.1 200 OK";
-    let contents = fs::read_to_string("response.html").unwrap();
-    let length = contents.len();
     
-    //Formating the HTTP response
-    let response = format!("{status}\r\nContent-Length: {length}\r\n\r\n{contents}");
+    println!("Request: {http_request:#?}");    
+
+    let request_line = http_request[0].clone();
+
+    if request_line == "GET / HTTP/1.1" {
+            //contents of HTTP response
+        let status = "HTTP/1.1 200 OK";
+        let contents = fs::read_to_string("response.html").unwrap();
+        let length = contents.len();
+        
+        //Formating the HTTP response
+        let response = format!("{status}\r\nContent-Length: {length}\r\n\r\n{contents}");
 
 
-    stream.write_all(response.as_bytes()).unwrap();
+        stream.write_all(response.as_bytes()).unwrap();
+
+    } else{
+            //contents of HTTP response
+        let status = "HTTP/1.1 404 NOT FOUND";
+        let contents = fs::read_to_string("404.html").unwrap();
+        let length = contents.len();
+        
+        //Formating the HTTP response
+        let response = format!("{status}\r\nContent-Length: {length}\r\n\r\n{contents}");
+
+
+        stream.write_all(response.as_bytes()).unwrap();
+    }
+
 
 
 }
 
-fn main(){
+
+fn server(){
     load_db("config_db.txt");
     
 
     let mut listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    let pool = ThreadPool::new(4);
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        handle_connection(stream);
+
+        pool.execute(|| {
+            handle_connection(stream);
+        });
+        
     }
     // process_input();
+
+}
+
+fn client(){
+
+
+    loop{
+
+        print!("->Enter Request:");
+        
+
+        io::stdout().flush().unwrap();
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+
+        let parts: Vec<&str>  = input.trim().split_whitespace().collect();
+
+        if parts.is_empty(){
+            continue;
+        }
+
+        let client = Client::new();
+
+        match parts[0]{
+            "put" if parts.len() == 6  => {
+                    println!("Input {:?}",parts);
+
+                    let response = client.put("http://127.0.0.1:7878")
+                                              .body("put {parts[1]} {parts[2]} {parts[3]} {parts[4]} {parts[5]}")
+                                              .send();
+                    match response{
+                        Ok(resp) => println!("Response: {:?}", resp.text().unwrap()),
+                        Err(e) => eprintln!("Request failed: {}", e),                
+                    }
+
+                
+            }
+            "get" if parts.len() == 2 =>{
+                let response = client.get("http://127.0.0.1:7878")
+                                              .body("get {parts[1]}")
+                                              .send();
+                    match response{
+                        Ok(resp) => println!("Response: {:?}", resp.text().unwrap()),
+                        Err(e) => eprintln!("Request failed: {}", e),                
+                    }
+            }
+
+            "del" if parts.len() == 2 =>{
+                let Key = parts[1].to_string();
+                del(&Key);
+            }
+            "exit" =>{
+                break;
+            }
+            _ => println!("Invalid command! Use: put <key> <name> <ip> <type> <id> | get <key> | delete <key> | exit"),
+            
+        }
+        let response = client.put("http://127.0.0.1:7878")
+        .body("put 1 2 3 4 5")
+        .send();
+
+
+
+    }
+    
+}
+
+fn main(){
+
+    loop{
+        print!("> Server or client?");
+        io::stdout().flush().unwrap();
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+        let parts: Vec<&str>  = input.trim().split_whitespace().collect();
+
+        if parts.is_empty(){
+            continue;
+        }
+        match parts[0]{
+            "client" =>{
+                client();
+            }
+            "server" =>{
+                server();
+            }
+            _ => {continue;}
+        }
+
+
+    }
 
     println!("Let's make distributed key value store by tonight!!");
 
